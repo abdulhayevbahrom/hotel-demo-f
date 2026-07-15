@@ -31,7 +31,15 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
     return result;
   }
 
-  if (!isExpiredToken) return result;
+  // Har qanday boshqa 401 ham yaroqsiz yoki bekor qilingan sessiya deb
+  // qabul qilinadi. `RequireAuth` token tozalangach foydalanuvchini login
+  // sahifasiga qaytaradi.
+  if (result?.error?.status !== 401) return result;
+
+  if (!isExpiredToken) {
+    api.dispatch(logout());
+    return result;
+  }
 
   const refreshToken = api.getState()?.auth?.refreshToken;
   if (!refreshToken) {
@@ -53,6 +61,7 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
   if (refreshed?.token) {
     api.dispatch(setEmployeeAuth(refreshed));
     result = await rawBaseQuery(args, api, extraOptions);
+    if (result?.error?.status === 401) api.dispatch(logout());
     return result;
   }
 

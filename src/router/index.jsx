@@ -3,6 +3,7 @@ import AdminLayout from "../layout/AdminLayout";
 import DashboardPage from "../pages/DashboardPage";
 import EmployeesPage from "../pages/EmployeesPage";
 import RoomsPage from "../pages/RoomsPage";
+import OccupancyPage from "../pages/OccupancyPage";
 import GuestsPage from "../pages/GuestsPage";
 import GuestCheckinPage from "../pages/GuestCheckinPage";
 import FinancePage from "../pages/FinancePage";
@@ -52,6 +53,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireSection section="rooms">
             <RoomsPage />
+          </RequireSection>
+        ),
+      },
+      {
+        path: "occupancy",
+        element: (
+          <RequireSection section="guests">
+            <OccupancyPage />
           </RequireSection>
         ),
       },

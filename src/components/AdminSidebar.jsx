@@ -35,6 +35,7 @@ const iconByPath = {
   "/dashboard": FiBarChart2,
   "/employees": FiUsers,
   "/rooms": FiHome,
+  "/occupancy": FiCalendar,
   "/guest-checkin": FiUserCheck,
   "/guests-active": FiLayers,
   "/guests-history": FiBookOpen,

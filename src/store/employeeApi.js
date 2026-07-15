@@ -74,6 +74,11 @@ export const employeeApi = apiSlice.injectEndpoints({
       },
       providesTags: ["Guest"],
     }),
+    getOccupancy: builder.query({
+      query: ({ from, to }) =>
+        `/occupancy?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+      providesTags: ["Guest", "Room"],
+    }),
     getVipRequests: builder.query({
       query: (status = "pending") =>
         `/vip-requests?status=${encodeURIComponent(status)}`,
@@ -304,6 +309,7 @@ export const {
   useDeleteRoomMutation,
   useGetGuestsQuery,
   useLazyGetGuestsQuery,
+  useGetOccupancyQuery,
   useGetVipRequestsQuery,
   useGetVipRequestsCountQuery,
   useDecideVipRequestMutation,

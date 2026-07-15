@@ -2,6 +2,7 @@ export const navItems = [
   { to: "/dashboard", label: "Dashboard", section: "dashboard" },
   { to: "/employees", label: "Hodimlar", section: "employees" },
   { to: "/rooms", label: "Xonalar", section: "rooms" },
+  { to: "/occupancy", label: "Shaxmatka", section: "guests" },
   { to: "/guest-checkin", label: "Yangi mehmon", section: "guests" },
   { to: "/guests-active", label: "Active mijozlar", section: "guests-active" },
   {

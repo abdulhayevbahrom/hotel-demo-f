@@ -89,6 +89,103 @@
   font-size: 16px;
 }
 
+.reports-daily-button.ant-btn {
+  height: 42px;
+  border-radius: 10px;
+  border-color: #263a58;
+  background: #263a58;
+  font-weight: 700;
+}
+
+.daily-report-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  color: #374151;
+  font-weight: 700;
+}
+
+.daily-report-toolbar small {
+  margin-left: auto;
+  color: #a16207;
+  font-weight: 600;
+}
+
+.daily-report-preview-wrap {
+  max-height: 68vh;
+  padding: 20px;
+  overflow: auto;
+  background: #e8e5de;
+  border-radius: 10px;
+}
+
+.daily-report-sheet {
+  width: 190mm;
+  min-height: 277mm;
+  margin: 0 auto;
+  padding: 12mm;
+  color: #1f2937;
+  background: #fff;
+  font-family: "Segoe UI", Arial, sans-serif;
+  box-shadow: 0 8px 30px rgba(31, 41, 55, 0.15);
+}
+
+.daily-report-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 14px;
+  border-bottom: 2px solid #263a58;
+}
+
+.daily-report-brand { color: #263a58; font-size: 21px; font-weight: 900; letter-spacing: .5px; }
+.daily-report-address { margin-top: 4px; color: #6b7280; font-size: 11px; }
+.daily-report-title { text-align: right; }
+.daily-report-title h1 { margin: 0 0 4px; color: #263a58; font-size: 22px; letter-spacing: 1px; }
+.daily-report-title strong { color: #99722c; font-size: 12px; text-transform: uppercase; }
+.daily-report-demo-badge { width: max-content; margin: 10px 0; padding: 4px 9px; border: 1px solid #e8c879; border-radius: 4px; color: #8a641b; background: #fff8df; font-size: 9px; font-weight: 900; letter-spacing: 1.2px; }
+
+.daily-report-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.daily-report-summary > div { display: grid; gap: 8px; padding: 10px; border: 1px solid #dfe4ea; border-radius: 7px; background: #f8fafc; }
+.daily-report-summary span { color: #6b7280; font-size: 9px; }
+.daily-report-summary strong { color: #263a58; font-size: 13px; }
+.daily-report-summary .is-expense { color: #b33b3b; }
+.daily-report-summary .is-primary { border-color: #263a58; background: #263a58; }
+.daily-report-summary .is-primary span, .daily-report-summary .is-primary strong { color: #fff; }
+
+.daily-report-section { margin-top: 14px; }
+.daily-report-section h2 { margin: 0 0 8px; color: #263a58; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+.daily-report-kpis { display: grid; grid-template-columns: repeat(6, 1fr); border: 1px solid #dfe4ea; border-radius: 7px; overflow: hidden; }
+.daily-report-kpis > div { display: grid; gap: 3px; padding: 9px 6px; text-align: center; border-right: 1px solid #dfe4ea; }
+.daily-report-kpis > div:last-child { border-right: 0; }
+.daily-report-kpis strong { color: #263a58; font-size: 18px; }
+.daily-report-kpis span { color: #6b7280; font-size: 8px; }
+.daily-report-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.daily-report-rows { border: 1px solid #dfe4ea; border-radius: 7px; overflow: hidden; }
+.daily-report-rows > div { display: flex; justify-content: space-between; gap: 10px; padding: 7px 9px; border-bottom: 1px solid #e8ebef; font-size: 9px; }
+.daily-report-rows > div:last-child { border-bottom: 0; }
+.daily-report-rows b { color: #263a58; }
+.daily-report-section-head { display: flex; justify-content: space-between; align-items: center; }
+.daily-report-section-head > span, .daily-report-section-head > b { color: #7c6741; font-size: 9px; }
+.daily-report-table { width: 100%; border-collapse: collapse; font-size: 8.5px; }
+.daily-report-table th { padding: 7px 8px; color: #fff; background: #263a58; text-align: left; }
+.daily-report-table th:last-child, .daily-report-table td:last-child { text-align: right; }
+.daily-report-table td { padding: 6px 8px; border-bottom: 1px solid #e5e7eb; }
+.daily-report-table tbody tr:nth-child(even) { background: #f8fafc; }
+.daily-report-expense-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.daily-report-expense-grid > div { display: grid; gap: 4px; padding: 8px; border: 1px solid #ead8d8; border-radius: 6px; background: #fff8f8; font-size: 8.5px; }
+.daily-report-expense-grid b { color: #a43c3c; }
+.daily-report-debt { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding: 9px 11px; border-left: 4px solid #c89d45; background: #fff8e8; }
+.daily-report-debt div { display: flex; align-items: center; gap: 12px; font-size: 9px; }
+.daily-report-debt strong { color: #8a641b; font-size: 13px; }
+.daily-report-debt p { margin: 0; color: #745d32; font-size: 8.5px; }
+.daily-report-footer { display: flex; justify-content: space-between; margin-top: 20px; padding-top: 10px; border-top: 1px solid #cfd5dc; color: #6b7280; font-size: 8px; }
+
+@media print {
+  .daily-report-sheet { width: auto; min-height: auto; padding: 0; box-shadow: none; }
+}
+
 .reports-highlights {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -393,4 +490,8 @@
     font-size: 12px;
     padding: 10px;
   }
+
+  .daily-report-toolbar { align-items: flex-start; flex-wrap: wrap; }
+  .daily-report-toolbar small { width: 100%; margin-left: 0; }
+  .daily-report-preview-wrap { padding: 8px; }
 }

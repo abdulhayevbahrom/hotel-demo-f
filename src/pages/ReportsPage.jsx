@@ -1,8 +1,9 @@
-import { memo, useMemo, useState } from "react";
-import { DatePicker } from "antd";
+import { memo, useMemo, useRef, useState } from "react";
+import { Button, DatePicker, Modal } from "antd";
 import dayjs from "dayjs";
 import "dayjs/locale/uz";
 import { useNavigate } from "react-router-dom";
+import { useReactToPrint } from "react-to-print";
 import {
   FiActivity,
   FiBarChart2,
@@ -10,6 +11,7 @@ import {
   FiDollarSign,
   FiFileText,
   FiGrid,
+  FiPrinter,
   FiShield,
   FiStar,
   FiUsers,
@@ -29,6 +31,36 @@ const formatCompactMoney = (value) => {
   if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)} mln`;
   if (amount >= 1_000) return `${(amount / 1_000).toFixed(1)} ming`;
   return `${Math.round(amount)}`;
+};
+
+const DAILY_REPORT_DEMO = {
+  currentBalance: 23600000,
+  roomRevenue: 14750000,
+  serviceRevenue: 2380000,
+  hallRevenue: 4800000,
+  expenses: 1850000,
+  cash: 10930000,
+  card: 7850000,
+  transfer: 3150000,
+  occupiedRooms: 31,
+  availableRooms: 13,
+  arrivals: 9,
+  departures: 7,
+  guests: 46,
+  debtors: 4,
+  debt: 3250000,
+  payments: [
+    { time: "08:15", source: "Xona 204 - Dilshod Karimov", type: "Naqd", amount: 1800000 },
+    { time: "10:40", source: "Xona 107 - Malika Rasulova", type: "Karta", amount: 2250000 },
+    { time: "13:20", source: "Konferensiya zali", type: "O'tkazma", amount: 4800000 },
+    { time: "16:05", source: "Xona 305 - Akmal Saidov", type: "Karta", amount: 3200000 },
+    { time: "19:30", source: "Xona 112 - Anna Petrova", type: "Naqd", amount: 2880000 },
+  ],
+  expensesList: [
+    { title: "Oshxona mahsulotlari", amount: 780000 },
+    { title: "Kir yuvish va tozalash", amount: 420000 },
+    { title: "Texnik ta'mirlash", amount: 650000 },
+  ],
 };
 
 const REPORT_DESTINATIONS = {
@@ -298,9 +330,13 @@ const getReportMetric = (key, sections = {}) => {
 
 function ReportsPage() {
   const navigate = useNavigate();
+  const dailyReportRef = useRef(null);
   const [selectedMonth, setSelectedMonth] = useState(() =>
     dayjs().startOf("month"),
   );
+  const [dailyReportDate, setDailyReportDate] = useState(() => dayjs());
+  const [isDailyReportOpen, setIsDailyReportOpen] = useState(false);
+  const hotelName = localStorage.getItem("hotelName") || "GRAND HOTEL";
   const monthKey = selectedMonth.format("YYYY-MM");
 
   const { data, isLoading, isFetching, error } = useGetReportsSummaryQuery(
@@ -355,6 +391,15 @@ function ReportsPage() {
     setSelectedMonth(value.startOf("month"));
   };
 
+  const printDailyReport = useReactToPrint({
+    content: () => dailyReportRef.current,
+    documentTitle: `Kunlik-hisobot-${dailyReportDate.format("YYYY-MM-DD")}`,
+    pageStyle: `
+      @page { size: A4 portrait; margin: 10mm; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    `,
+  });
+
   if (isLoading && !data) {
     return (
       <PageLoader
@@ -392,6 +437,14 @@ function ReportsPage() {
                   <span>Tanlangan oy</span>
                   <strong>{reportData?.month || monthKey}</strong>
                 </div>
+                <Button
+                  type="primary"
+                  icon={<FiPrinter size={16} />}
+                  className="reports-daily-button"
+                  onClick={() => setIsDailyReportOpen(true)}
+                >
+                  Kunlik hisobot PDF
+                </Button>
               </div>
             </div>
           </div>
@@ -499,6 +552,119 @@ function ReportsPage() {
             : "-"}
           .
         </section>
+
+        <Modal
+          open={isDailyReportOpen}
+          onCancel={() => setIsDailyReportOpen(false)}
+          width={920}
+          title="Kunlik hisobot - demo ko'rinishi"
+          className="daily-report-modal"
+          footer={[
+            <Button key="close" onClick={() => setIsDailyReportOpen(false)}>
+              Yopish
+            </Button>,
+            <Button
+              key="print"
+              type="primary"
+              icon={<FiPrinter size={16} />}
+              onClick={printDailyReport}
+            >
+              PDF saqlash / Print
+            </Button>,
+          ]}
+        >
+          <div className="daily-report-toolbar">
+            <span>Hisobot sanasi</span>
+            <DatePicker
+              allowClear={false}
+              value={dailyReportDate}
+              onChange={(value) => value && setDailyReportDate(value)}
+              format="DD.MM.YYYY"
+            />
+            <small>Hozircha fake ma'lumotlar ishlatilmoqda</small>
+          </div>
+
+          <div className="daily-report-preview-wrap">
+            <div ref={dailyReportRef} className="daily-report-sheet">
+              <header className="daily-report-head">
+                <div>
+                  <div className="daily-report-brand">{hotelName}</div>
+                  <div className="daily-report-address">Mehmonxona boshqaruv tizimi</div>
+                </div>
+                <div className="daily-report-title">
+                  <h1>KUNLIK HISOBOT</h1>
+                  <strong>{dailyReportDate.format("DD MMMM YYYY")}</strong>
+                </div>
+              </header>
+
+              <div className="daily-report-demo-badge">DEMO MA'LUMOTLAR</div>
+
+              <section className="daily-report-summary">
+                <div><span>Bugungi tushum</span><strong>{formatMoney(DAILY_REPORT_DEMO.roomRevenue + DAILY_REPORT_DEMO.serviceRevenue + DAILY_REPORT_DEMO.hallRevenue)} so'm</strong></div>
+                <div><span>Bugungi xarajat</span><strong className="is-expense">-{formatMoney(DAILY_REPORT_DEMO.expenses)} so'm</strong></div>
+                <div className="is-primary"><span>Chop etilgan vaqtdagi balans</span><strong>{formatMoney(DAILY_REPORT_DEMO.currentBalance)} so'm</strong></div>
+              </section>
+
+              <section className="daily-report-section">
+                <h2>Operatsion ko'rsatkichlar</h2>
+                <div className="daily-report-kpis">
+                  <div><strong>{DAILY_REPORT_DEMO.occupiedRooms}</strong><span>Band xonalar</span></div>
+                  <div><strong>{DAILY_REPORT_DEMO.availableRooms}</strong><span>Bo'sh xonalar</span></div>
+                  <div><strong>{DAILY_REPORT_DEMO.arrivals}</strong><span>Kelganlar</span></div>
+                  <div><strong>{DAILY_REPORT_DEMO.departures}</strong><span>Ketganlar</span></div>
+                  <div><strong>{DAILY_REPORT_DEMO.guests}</strong><span>Jami mehmon</span></div>
+                  <div><strong>{DAILY_REPORT_DEMO.debtors}</strong><span>Qarzdorlar</span></div>
+                </div>
+              </section>
+
+              <div className="daily-report-columns">
+                <section className="daily-report-section">
+                  <h2>Daromad manbalari</h2>
+                  <div className="daily-report-rows">
+                    <div><span>Xonalar</span><b>{formatMoney(DAILY_REPORT_DEMO.roomRevenue)} so'm</b></div>
+                    <div><span>Qo'shimcha xizmatlar</span><b>{formatMoney(DAILY_REPORT_DEMO.serviceRevenue)} so'm</b></div>
+                    <div><span>Zal buyurtmalari</span><b>{formatMoney(DAILY_REPORT_DEMO.hallRevenue)} so'm</b></div>
+                  </div>
+                </section>
+                <section className="daily-report-section">
+                  <h2>To'lov turlari</h2>
+                  <div className="daily-report-rows">
+                    <div><span>Naqd</span><b>{formatMoney(DAILY_REPORT_DEMO.cash)} so'm</b></div>
+                    <div><span>Bank kartasi</span><b>{formatMoney(DAILY_REPORT_DEMO.card)} so'm</b></div>
+                    <div><span>O'tkazma</span><b>{formatMoney(DAILY_REPORT_DEMO.transfer)} so'm</b></div>
+                  </div>
+                </section>
+              </div>
+
+              <section className="daily-report-section">
+                <div className="daily-report-section-head"><h2>Asosiy to'lovlar</h2><span>{DAILY_REPORT_DEMO.payments.length} ta operatsiya</span></div>
+                <table className="daily-report-table">
+                  <thead><tr><th>Vaqt</th><th>Manba / mijoz</th><th>To'lov turi</th><th>Summa</th></tr></thead>
+                  <tbody>{DAILY_REPORT_DEMO.payments.map((payment) => (
+                    <tr key={`${payment.time}-${payment.source}`}><td>{payment.time}</td><td>{payment.source}</td><td>{payment.type}</td><td>{formatMoney(payment.amount)} so'm</td></tr>
+                  ))}</tbody>
+                </table>
+              </section>
+
+              <section className="daily-report-section daily-report-expenses">
+                <div className="daily-report-section-head"><h2>Xarajatlar</h2><b>Jami: {formatMoney(DAILY_REPORT_DEMO.expenses)} so'm</b></div>
+                <div className="daily-report-expense-grid">{DAILY_REPORT_DEMO.expensesList.map((expense) => (
+                  <div key={expense.title}><span>{expense.title}</span><b>{formatMoney(expense.amount)} so'm</b></div>
+                ))}</div>
+              </section>
+
+              <section className="daily-report-debt">
+                <div><span>Undirilmagan qarzdorlik</span><strong>{formatMoney(DAILY_REPORT_DEMO.debt)} so'm</strong></div>
+                <p>{DAILY_REPORT_DEMO.debtors} nafar mehmon bo'yicha nazorat talab qilinadi.</p>
+              </section>
+
+              <footer className="daily-report-footer">
+                <span>Tayyorladi: Administrator __________________</span>
+                <span>Chop etildi: {dayjs().format("DD.MM.YYYY HH:mm")}</span>
+              </footer>
+            </div>
+          </div>
+        </Modal>
       </div>
     </div>
   );

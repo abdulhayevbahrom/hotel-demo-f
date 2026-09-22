@@ -81,6 +81,12 @@ export const apiSlice = createApi({
     "Settings",
     "Service",
     "HallBooking",
+    "GroupBooking",
+    "Receipt",
+    "AuditLog",
+    "StaffAttendance",
+    "StaffPayroll",
+    "StaffPayrollEntry",
   ],
   endpoints: () => ({}),
 });

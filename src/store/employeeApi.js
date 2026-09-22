@@ -9,6 +9,12 @@ export const employeeApi = apiSlice.injectEndpoints({
         body,
       }),
     }),
+    employeeLogout: builder.mutation({
+      query: () => ({
+        url: "/employee/logout",
+        method: "POST",
+      }),
+    }),
     getEmployees: builder.query({
       query: () => "/employees",
       providesTags: ["Employee"],
@@ -49,7 +55,7 @@ export const employeeApi = apiSlice.injectEndpoints({
       invalidatesTags: ["Room"],
     }),
     updateRoom: builder.mutation({
-      query: ({ id, ...body }) => ({
+      query: ({ id, body }) => ({
         url: `/room/${id}`,
         method: "PUT",
         body,
@@ -100,6 +106,9 @@ export const employeeApi = apiSlice.injectEndpoints({
     getGuestByPassport: builder.query({
       query: (passport) => `/guest/by-passport/${encodeURIComponent(passport)}`,
     }),
+    getGuestById: builder.query({
+      query: (id) => `/guest/${encodeURIComponent(id)}`,
+    }),
     createGuest: builder.mutation({
       query: (body) => ({
         url: "/guest",
@@ -115,6 +124,49 @@ export const employeeApi = apiSlice.injectEndpoints({
         body,
       }),
       invalidatesTags: ["Guest", "Room"],
+    }),
+    getGroupBookings: builder.query({
+      query: ({ tab = "active", page = 1, limit = 20, query = "" } = {}) => {
+        const search = new URLSearchParams({
+          tab,
+          page: String(page),
+          limit: String(limit),
+        });
+        if (query) search.set("query", query);
+        return `/group-bookings?${search.toString()}`;
+      },
+      providesTags: ["GroupBooking", "Guest"],
+    }),
+    createGroupBooking: builder.mutation({
+      query: (body) => ({
+        url: "/group-booking",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["GroupBooking", "Guest", "Room"],
+    }),
+    updateGroupBooking: builder.mutation({
+      query: ({ id, ...body }) => ({
+        url: `/group-booking/${id}`,
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: ["GroupBooking", "Guest"],
+    }),
+    deleteGroupBooking: builder.mutation({
+      query: (id) => ({
+        url: `/group-booking/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["GroupBooking", "Guest", "Room"],
+    }),
+    addGroupPayment: builder.mutation({
+      query: ({ id, ...body }) => ({
+        url: `/group-booking/${id}/payment`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["GroupBooking", "Guest"],
     }),
     updateGuest: builder.mutation({
       query: ({ id, ...body }) => ({
@@ -132,10 +184,56 @@ export const employeeApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["Guest"],
     }),
+    updateGuestPayment: builder.mutation({
+      query: ({ id, paymentIndex, ...body }) => ({
+        url: `/guest/${id}/payment/${paymentIndex}`,
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: ["Guest"],
+    }),
     checkoutGuest: builder.mutation({
       query: (id) => ({
         url: `/guest/${id}/checkout`,
         method: "POST",
+      }),
+      invalidatesTags: ["Guest", "Room"],
+    }),
+    activateBookedGuest: builder.mutation({
+      query: (id) => ({
+        url: `/guest/${id}/activate-booking`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Guest", "Room"],
+    }),
+    cancelBookedGuest: builder.mutation({
+      query: (id) => ({
+        url: `/guest/${id}/cancel-booking`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Guest", "Room"],
+    }),
+    resolveWebsiteBookingRooms: builder.mutation({
+      query: ({ reference, activeGuestIds }) => ({
+        url: `/website-booking/${encodeURIComponent(reference)}/resolve`,
+        method: "POST",
+        body: { activeGuestIds },
+      }),
+      invalidatesTags: ["Guest", "Room"],
+    }),
+    continueGuestStay: builder.mutation({
+      query: ({ id, additionalDays }) => ({
+        url: `/guest/${id}/continue`,
+        method: "POST",
+        body: { additionalDays },
+      }),
+      invalidatesTags: ["Guest", "Room"],
+    }),
+    checkoutGuestsBulk: builder.mutation({
+      query: (body) => ({
+        url: "/guests/checkout-bulk",
+        method: "POST",
+        body,
       }),
       invalidatesTags: ["Guest", "Room"],
     }),
@@ -181,6 +279,40 @@ export const employeeApi = apiSlice.injectEndpoints({
         method: "DELETE",
       }),
       invalidatesTags: ["Service"],
+    }),
+    createReceipt: builder.mutation({
+      query: (body) => ({
+        url: "/receipt",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Receipt"],
+    }),
+    getReceipts: builder.query({
+      query: (params = {}) => {
+        const search = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+          if (value === undefined || value === null || value === "") return;
+          search.set(key, String(value));
+        });
+        return `/receipts?${search.toString()}`;
+      },
+      providesTags: ["Receipt"],
+    }),
+    updateReceipt: builder.mutation({
+      query: ({ id, ...body }) => ({
+        url: `/receipt/${id}`,
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: ["Receipt"],
+    }),
+    deleteReceipt: builder.mutation({
+      query: (id) => ({
+        url: `/receipt/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Receipt"],
     }),
     getHallBookings: builder.query({
       query: (tab = "all") =>
@@ -252,6 +384,43 @@ export const employeeApi = apiSlice.injectEndpoints({
           : "/reports-summary";
       },
     }),
+    getDailyReport: builder.query({
+      query: (params = {}) => {
+        const date = typeof params === "string" ? params : params.date;
+        const search = new URLSearchParams();
+        search.set("date", String(date || ""));
+        if (params.includeAllRooms) search.set("includeAllRooms", "true");
+        if (params.korpus) search.set("korpus", String(params.korpus));
+        if (params.floor) search.set("floor", String(params.floor));
+        return `/reports-daily?${search.toString()}`;
+      },
+    }),
+    getClientSalesReport: builder.query({
+      query: ({
+        month = "",
+        from = "",
+        to = "",
+        type = "",
+        query = "",
+        clientType = "",
+        page = 1,
+        limit = 30,
+      } = {}) => {
+        const search = new URLSearchParams();
+        search.set("page", String(page));
+        search.set("limit", String(limit));
+        if (from && to) {
+          search.set("from", String(from));
+          search.set("to", String(to));
+        } else if (month) {
+          search.set("month", String(month));
+        }
+        if (type) search.set("type", String(type));
+        if (query) search.set("query", String(query));
+        if (clientType) search.set("clientType", String(clientType));
+        return `/reports-client-sales?${search.toString()}`;
+      },
+    }),
     createExpense: builder.mutation({
       query: (body) => ({
         url: "/expense",
@@ -275,9 +444,28 @@ export const employeeApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["Expense"],
     }),
+    deleteExpensesBulk: builder.mutation({
+      query: (ids) => ({
+        url: "/expenses/bulk",
+        method: "DELETE",
+        body: { ids },
+      }),
+      invalidatesTags: ["Expense"],
+    }),
     getSettings: builder.query({
       query: () => "/settings",
       providesTags: ["Settings"],
+    }),
+    getAuditLogs: builder.query({
+      query: (params = {}) => {
+        const search = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+          if (value === undefined || value === null || value === "") return;
+          search.set(key, String(value));
+        });
+        return `/audit-logs?${search.toString()}`;
+      },
+      providesTags: ["AuditLog"],
     }),
     updateSettings: builder.mutation({
       query: (body) => ({
@@ -286,6 +474,14 @@ export const employeeApi = apiSlice.injectEndpoints({
         body,
       }),
       invalidatesTags: ["Settings", "Guest"],
+    }),
+    updateRoomCategoryImages: builder.mutation({
+      query: (body) => ({
+        url: "/settings/room-category-images",
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: ["Settings"],
     }),
     sendSupportMessage: builder.mutation({
       query: (body) => ({
@@ -299,6 +495,7 @@ export const employeeApi = apiSlice.injectEndpoints({
 
 export const {
   useEmployeeLoginMutation,
+  useEmployeeLogoutMutation,
   useGetEmployeesQuery,
   useCreateEmployeeMutation,
   useUpdateEmployeeMutation,
@@ -314,17 +511,33 @@ export const {
   useGetVipRequestsCountQuery,
   useDecideVipRequestMutation,
   useLazyGetGuestByPassportQuery,
+  useLazyGetGuestByIdQuery,
   useCreateGuestMutation,
   useCreateGuestsBulkMutation,
+  useGetGroupBookingsQuery,
+  useCreateGroupBookingMutation,
+  useUpdateGroupBookingMutation,
+  useDeleteGroupBookingMutation,
+  useAddGroupPaymentMutation,
   useUpdateGuestMutation,
   useAddGuestPaymentMutation,
+  useUpdateGuestPaymentMutation,
   useCheckoutGuestMutation,
+  useActivateBookedGuestMutation,
+  useCancelBookedGuestMutation,
+  useResolveWebsiteBookingRoomsMutation,
+  useContinueGuestStayMutation,
+  useCheckoutGuestsBulkMutation,
   useDeleteGuestMutation,
   useAddGuestServiceMutation,
   useGetServicesQuery,
   useCreateServiceMutation,
   useUpdateServiceMutation,
   useDeleteServiceMutation,
+  useCreateReceiptMutation,
+  useGetReceiptsQuery,
+  useUpdateReceiptMutation,
+  useDeleteReceiptMutation,
   useGetHallBookingsQuery,
   useCreateHallBookingMutation,
   useUpdateHallBookingMutation,
@@ -334,10 +547,15 @@ export const {
   useGetExpensesQuery,
   useGetDashboardSummaryQuery,
   useGetReportsSummaryQuery,
+  useGetDailyReportQuery,
+  useGetClientSalesReportQuery,
   useCreateExpenseMutation,
   useUpdateExpenseMutation,
   useDeleteExpenseMutation,
+  useDeleteExpensesBulkMutation,
   useGetSettingsQuery,
+  useGetAuditLogsQuery,
   useUpdateSettingsMutation,
+  useUpdateRoomCategoryImagesMutation,
   useSendSupportMessageMutation,
 } = employeeApi;

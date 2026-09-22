@@ -6,13 +6,18 @@ import RoomsPage from "../pages/RoomsPage";
 import OccupancyPage from "../pages/OccupancyPage";
 import GuestsPage from "../pages/GuestsPage";
 import GuestCheckinPage from "../pages/GuestCheckinPage";
+import GroupsPage from "../pages/GroupsPage";
 import FinancePage from "../pages/FinancePage";
 import ReportsPage from "../pages/ReportsPage";
+import ClientSalesReportPage from "../pages/ClientSalesReportPage";
 import AttendancePage from "../pages/AttendancePage";
+import PayrollPage from "../pages/PayrollPage";
 import ExpensesPage from "../pages/ExpensesPage";
 import ServicesPage from "../pages/ServicesPage";
 import HallBookingsPage from "../pages/hall/HallBookingsPage";
+import ReceiptsPage from "../pages/ReceiptsPage";
 import SettingsPage from "../pages/SettingsPage";
+import AuditLogsPage from "../pages/AuditLogsPage";
 import NotFoundPage from "../pages/NotFoundPage";
 import LoginPage from "../pages/LoginPage";
 import ForbiddenPage from "../pages/ForbiddenPage";
@@ -85,10 +90,26 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "groups",
+        element: (
+          <RequireSection section="groups">
+            <GroupsPage />
+          </RequireSection>
+        ),
+      },
+      {
         path: "guests-history",
         element: (
           <RequireSection section="guests-history">
             <GuestsPage tab="history" />
+          </RequireSection>
+        ),
+      },
+      {
+        path: "receipts",
+        element: (
+          <RequireSection section="receipts">
+            <ReceiptsPage />
           </RequireSection>
         ),
       },
@@ -125,10 +146,26 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "client-sales-report",
+        element: (
+          <RequireSection section="client-sales-report">
+            <ClientSalesReportPage />
+          </RequireSection>
+        ),
+      },
+      {
         path: "attendance",
         element: (
           <RequireSection section="attendance">
             <AttendancePage />
+          </RequireSection>
+        ),
+      },
+      {
+        path: "payroll",
+        element: (
+          <RequireSection section="payroll">
+            <PayrollPage />
           </RequireSection>
         ),
       },
@@ -153,6 +190,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireSection section="settings">
             <SettingsPage />
+          </RequireSection>
+        ),
+      },
+      {
+        path: "audit-logs",
+        element: (
+          <RequireSection section="audit-logs">
+            <AuditLogsPage />
           </RequireSection>
         ),
       },

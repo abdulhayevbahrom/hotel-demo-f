@@ -3,18 +3,31 @@ const guestSections = [
   "guests-active",
   "guests-history",
   "guests-debtors",
+  "receipts",
+  "groups",
 ];
 
-export const hasSectionAccess = (sections = [], requiredSection = "") => {
-  const current = Array.isArray(sections) ? sections : [];
-  if (!requiredSection) return false;
-  if (current.includes(requiredSection)) return true;
+export const hasFullAccess = (role = "") =>
+  ["__system_admin__", "owner", "admin"].includes(role);
 
-  if (requiredSection.startsWith("guests-") && current.includes("guests")) {
+export const hasSectionAccess = (sections = [], requiredSection = "") => {
+  const current = Array.isArray(sections)
+    ? sections.map((section) => String(section).toLowerCase().trim())
+    : [];
+  const required = String(requiredSection).toLowerCase().trim();
+
+  if (!required) return false;
+  if (current.includes(required)) return true;
+
+  if (required.startsWith("guests-") && current.includes("guests")) {
     return true;
   }
 
-  if (requiredSection === "guests") {
+  if (required === "groups" && current.includes("guests")) {
+    return true;
+  }
+
+  if (required === "guests") {
     return guestSections.some((section) => current.includes(section));
   }
 

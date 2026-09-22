@@ -1,4 +1,5 @@
 import {
+  AutoComplete,
   Button,
   Checkbox,
   DatePicker,
@@ -11,20 +12,26 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
+import { useLocation } from "react-router-dom";
 import {
   useCreateGuestMutation,
   useCreateGuestsBulkMutation,
   useGetRoomsQuery,
+  useGetSettingsQuery,
   useLazyGetGuestByPassportQuery,
 } from "../store/employeeApi";
+import { organizationOptions } from "../constants/organizations";
+import GroupBookingForm from "./GroupBookingForm";
 
-const roomTypeOptions = [
-  { label: "Standart", value: "standart" },
-  { label: "Polulyuks", value: "polulyuks" },
-  { label: "Lyuks", value: "lyuks" },
-  { label: "Apartament", value: "apartament" },
-  { label: "1 Kishilik", value: "bir_kishilik" },
+const DEFAULT_ROOM_CATEGORIES = [
+  "standart",
+  "polulyuks",
+  "lyuks",
+  "apartament",
+  "bir_kishilik",
 ];
+const formatCategoryLabel = (value) =>
+  value === "bir_kishilik" ? "1 Kishilik" : String(value || "");
 
 const initialValues = {
   mode: "checkin",
@@ -34,14 +41,21 @@ const initialValues = {
   bookedForDate: null,
   room: undefined,
   dailyRate: 0,
-  stayDays: 1,
+  checkoutDate: dayjs().add(1, "day"),
   firstname: "",
   lastname: "",
   passport: "",
   birthDate: "",
   phone: "",
+  email: "",
+  organization: "",
   note: "",
   additionalGuests: [],
+  checkInAt: dayjs(),
+  initialPaymentAmount: 0,
+  initialPaymentType: "naqd",
+  initialPaymentDate: dayjs(),
+  mainPaymentType: "naqd",
 };
 
 const normalizeUzDateInput = (value) => {
@@ -105,9 +119,18 @@ const blockNonNumericKeys = (event) => {
   }
 };
 
+const calculateStayDays = (checkInAt, checkoutDate) => {
+  const checkInDay = dayjs(checkInAt).startOf("day");
+  const checkoutDay = dayjs(checkoutDate).startOf("day");
+  const days = checkoutDay.diff(checkInDay, "day");
+  return Math.max(days, 1);
+};
+
 function GuestCheckinPage() {
   const [form] = Form.useForm();
+  const location = useLocation();
   const { data: roomsData } = useGetRoomsQuery();
+  const { data: settingsData } = useGetSettingsQuery();
   const [createGuest, { isLoading }] = useCreateGuestMutation();
   const [createGuestsBulk, { isLoading: isBulkLoading }] =
     useCreateGuestsBulkMutation();
@@ -118,10 +141,20 @@ function GuestCheckinPage() {
   const latestPassportRef = useRef("");
   const [roomType, setRoomType] = useState(initialValues.roomType);
   const [guestType, setGuestType] = useState(initialValues.guestType);
-  const mode = Form.useWatch("mode", form) || "checkin";
+  const [mode, setMode] = useState("checkin");
   const isBookingMode = mode === "booking";
   const [isBlacklistedPassport, setIsBlacklistedPassport] = useState(false);
   const rooms = useMemo(() => roomsData?.innerData || [], [roomsData]);
+  const roomTypeOptions = useMemo(() => {
+    const categories =
+      settingsData?.innerData?.roomCategories?.length > 0
+        ? settingsData.innerData.roomCategories
+        : DEFAULT_ROOM_CATEGORIES;
+    return categories.map((value) => ({
+      label: formatCategoryLabel(value),
+      value,
+    }));
+  }, [settingsData]);
   const selectedRoom = useMemo(
     () => rooms.find((room) => room._id === selectedRoomId),
     [rooms, selectedRoomId],
@@ -183,18 +216,58 @@ function GuestCheckinPage() {
         (room) =>
           Number(room.capacity || 0) - Number(room.activeGuestsCount || 0) > 0,
       )
-      .map((room) => ({
+        .map((room) => ({
         label: `${room.roomNumber} [${room.category === "bir_kishilik" ? "1 kishilik" : room.category}] - Bo'sh joy: ${Math.max(
           Number(room.capacity || 0) - Number(room.activeGuestsCount || 0),
           0,
-        )}/${Number(room.capacity || 0)} [${room.floor}-qavat]`,
+        )}/${Number(room.capacity || 0)} [${room.floor}-qavat · ${room.korpus || ""} korpus]`,
         value: room._id,
       }));
   }, [rooms, roomType]);
 
+  useEffect(() => {
+    const pref = location.state?.recheckinGuest;
+    if (!pref) return;
+
+    const nextRoomType = pref.roomType || "standart";
+    const preferredRoom = rooms.find((room) => room._id === pref.roomId);
+    const preferredRoomIsFree =
+      preferredRoom &&
+      preferredRoom.status !== "remont" &&
+      Number(preferredRoom.capacity || 0) -
+        Number(preferredRoom.activeGuestsCount || 0) >
+        0;
+    setRoomType(nextRoomType);
+    setGuestType(pref.guestType || "uzb");
+    setMode("checkin");
+    form.setFieldsValue({
+      mode: "checkin",
+      roomType: nextRoomType,
+      room: preferredRoomIsFree ? pref.roomId : undefined,
+      dailyRate: Number(pref.dailyRate || 0),
+      checkoutDate: null,
+      firstname: pref.firstname || "",
+      lastname: pref.lastname || "",
+      passport: pref.passport || "",
+      birthDate: pref.birthDate
+        ? formatIsoToUzDate(pref.birthDate)
+        : "",
+      phone: pref.phone || "",
+      email: pref.email || "",
+      organization: pref.organization || "",
+      note: pref.note || "",
+      guestType: pref.guestType || "uzb",
+      vip: false,
+      additionalGuests: [],
+      checkInAt: dayjs(),
+    });
+  }, [form, location.state, rooms]);
+
   const onSubmit = async (values) => {
-    const birthDateIso = parseUzDateToIso(values.birthDate);
-    if (!birthDateIso) {
+    const birthDateIso = String(values.birthDate || "").trim()
+      ? parseUzDateToIso(values.birthDate)
+      : null;
+    if (String(values.birthDate || "").trim() && !birthDateIso) {
       toast.error("Tug'ilgan sana formati: dd.mm.yyyy");
       return;
     }
@@ -204,24 +277,49 @@ function GuestCheckinPage() {
       isBooking: isBookingMode,
       bookedForDate:
         isBookingMode && values.bookedForDate
-          ? values.bookedForDate.format("YYYY-MM-DD")
+          ? values.bookedForDate.toISOString()
           : undefined,
       room: values.room,
       dailyRate: Number(values.dailyRate || 0),
-      stayDays: Number(values.stayDays || 1),
+      stayDays: isBookingMode
+        ? calculateStayDays(values.bookedForDate, values.checkoutDate)
+        : calculateStayDays(values.checkInAt, values.checkoutDate),
+      checkInAt:
+        !isBookingMode && values.checkInAt
+          ? values.checkInAt.toISOString()
+          : undefined,
+      initialPaymentAmount: !isBookingMode
+        ? Number(values.initialPaymentAmount || 0)
+        : 0,
+      initialPaymentType: !isBookingMode ? values.initialPaymentType : undefined,
+      initialPaymentDate:
+        !isBookingMode && values.initialPaymentDate
+          ? values.initialPaymentDate.toISOString()
+          : undefined,
+      mainPaymentType: values.mainPaymentType || "naqd",
     };
     const firstGuest = {
       firstname: String(values.firstname || "").trim(),
       lastname: String(values.lastname || "").trim(),
       passport: String(values.passport || "").trim(),
-      birthDate: birthDateIso,
+      birthDate: birthDateIso || undefined,
       phone: String(values.phone || "").trim(),
+      email: String(values.email || "").trim(),
+      organization: String(values.organization || "").trim(),
       note: String(values.note || "").trim(),
       vip: isBookingMode ? false : Boolean(values.vip),
     };
 
     if (isBookingMode && !commonPayload.bookedForDate) {
       toast.error("Bron sanasini tanlang");
+      return;
+    }
+    if (isBookingMode && values.bookedForDate?.isBefore(dayjs())) {
+      toast.error("Bron vaqti hozirgi vaqtdan oldin bo'lishi mumkin emas");
+      return;
+    }
+    if (isBookingMode && !values.checkoutDate) {
+      toast.error("Qachongacha bron qilishini tanlang");
       return;
     }
 
@@ -234,8 +332,11 @@ function GuestCheckinPage() {
       if (additionalGuests.length > 0) {
         const extraGuests = [];
         for (const guest of additionalGuests) {
-          const extraBirthDateIso = parseUzDateToIso(guest?.birthDate);
-          if (!extraBirthDateIso) {
+          const rawExtraBirthDate = String(guest?.birthDate || "").trim();
+          const extraBirthDateIso = rawExtraBirthDate
+            ? parseUzDateToIso(rawExtraBirthDate)
+            : null;
+          if (rawExtraBirthDate && !extraBirthDateIso) {
             toast.error("Yangi mehmon tug'ilgan sana formati: dd.mm.yyyy");
             return;
           }
@@ -243,8 +344,9 @@ function GuestCheckinPage() {
             firstname: String(guest?.firstname || "").trim(),
             lastname: String(guest?.lastname || "").trim(),
             passport: String(guest?.passport || "").trim(),
-            birthDate: extraBirthDateIso,
+            birthDate: extraBirthDateIso || undefined,
             phone: String(guest?.phone || "").trim(),
+            email: String(guest?.email || "").trim(),
             note: String(guest?.note || "").trim(),
             vip: false,
           });
@@ -332,6 +434,17 @@ function GuestCheckinPage() {
     return () => clearTimeout(timer);
   }, [passportValue, fetchGuestByPassport, form]);
 
+  if (mode === "group") {
+    return (
+      <GroupBookingForm
+        onModeChange={(nextMode) => {
+          setMode(nextMode);
+          form.setFieldValue("mode", nextMode);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="checkin-modern">
       <div className="checkin-modern-card">
@@ -347,15 +460,18 @@ function GuestCheckinPage() {
           <div className="checkin-grid-top">
             <Form.Item name="mode" label="Amal turi">
               <Segmented
+                value={mode}
                 options={[
                   { label: "Qabul qilish", value: "checkin" },
                   { label: "Bron qilish", value: "booking" },
+                  { label: "Guruh", value: "group" },
                 ]}
                 block
+                onChange={setMode}
               />
             </Form.Item>
             <Form.Item name="roomType" label="Xona turi">
-              <Segmented
+              <Select
                 options={roomTypeSegmentOptions}
                 value={roomType}
                 onChange={(value) => {
@@ -367,7 +483,6 @@ function GuestCheckinPage() {
                     dailyRate: 0,
                   });
                 }}
-                block
               />
             </Form.Item>
 
@@ -379,6 +494,13 @@ function GuestCheckinPage() {
               <Select
                 placeholder="Xona tanlang"
                 options={roomOptions}
+                showSearch
+                optionFilterProp="label"
+                filterOption={(input, option) =>
+                  String(option?.label || "")
+                    .toLowerCase()
+                    .includes(String(input || "").toLowerCase())
+                }
                 onChange={(value) => {
                   const selected = rooms.find((room) => room._id === value);
                   const currentGuestType =
@@ -439,47 +561,120 @@ function GuestCheckinPage() {
             </Form.Item>
 
             <div className="checkin-room-extra-block">
-              <Form.Item
-                name="stayDays"
-                label="Necha kun qoladi"
-                rules={[{ required: true, message: "Kunlar soni majburiy" }]}
-              >
-                <InputNumber
-                  min={1}
-                  style={{ width: "100%" }}
-                  addonAfter="kun"
-                  parser={(value) => String(value || "").replace(/[^\d]/g, "")}
-                  onKeyDown={blockNonNumericKeys}
-                />
-              </Form.Item>
-
               <div className="checkin-room-extra-second">
                 {isBookingMode ? (
-                  <Form.Item
-                    name="bookedForDate"
-                    label="Bron sanasi"
-                    rules={[
-                      { required: true, message: "Bron sanasi majburiy" },
-                    ]}
-                  >
-                    <DatePicker
-                      style={{ width: "100%" }}
-                      format="DD.MM.YYYY"
-                      placeholder="Sanani tanlang"
-                      disabledDate={(current) =>
-                        current && current.startOf("day").isBefore(dayjs().startOf("day"))
-                      }
-                    />
-                  </Form.Item>
+                  <>
+                    <Form.Item
+                      name="bookedForDate"
+                      label="Bron sanasi"
+                      rules={[
+                        { required: true, message: "Bron sanasi majburiy" },
+                      ]}
+                    >
+                      <DatePicker
+                        style={{ width: "100%" }}
+                        showTime={{ format: "HH:mm" }}
+                        format="DD.MM.YYYY HH:mm"
+                        placeholder="Sana va vaqt tanlang"
+                        allowClear={false}
+                        disabledDate={(current) =>
+                          current &&
+                          current.startOf("day").isBefore(dayjs().startOf("day"))
+                        }
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      name="checkoutDate"
+                      label="Qachongacha bron"
+                      rules={[
+                        { required: true, message: "Chiqish sanasi majburiy" },
+                        ({ getFieldValue }) => ({
+                          validator(_, value) {
+                            const bookedForDate = getFieldValue("bookedForDate");
+                            if (
+                              !value ||
+                              !bookedForDate ||
+                              value
+                                .startOf("day")
+                                .isAfter(bookedForDate.startOf("day"))
+                            ) {
+                              return Promise.resolve();
+                            }
+                            return Promise.reject(
+                              new Error(
+                                "Chiqish sanasi bron sanasidan keyin bo'lishi kerak",
+                              ),
+                            );
+                          },
+                        }),
+                      ]}
+                    >
+                      <DatePicker
+                        style={{ width: "100%" }}
+                        format="DD.MM.YYYY"
+                        placeholder="Chiqish sanasini tanlang"
+                        disabledDate={(current) => {
+                          const bookedForDate = form.getFieldValue("bookedForDate");
+                          return (
+                            current &&
+                            (current
+                              .startOf("day")
+                              .isBefore(dayjs().startOf("day")) ||
+                              (bookedForDate &&
+                                !current
+                                  .startOf("day")
+                                  .isAfter(bookedForDate.startOf("day"))))
+                          );
+                        }}
+                      />
+                    </Form.Item>
+                  </>
                 ) : (
-                  <Form.Item
-                    name="vip"
-                    label="VIP holati"
-                    valuePropName="checked"
-                    className="checkin-vip-item"
-                  >
-                    <Checkbox>VIP mehmon (to'lov olinmaydi)</Checkbox>
-                  </Form.Item>
+                  <>
+                    <Form.Item
+                      name="checkInAt"
+                      label="Kelgan sana vaqti"
+                      rules={[
+                        {
+                          required: true,
+                          message: "Kelgan sana vaqti majburiy",
+                        },
+                      ]}
+                    >
+                      <DatePicker
+                        style={{ width: "100%" }}
+                        showTime={{ format: "HH:mm" }}
+                        format="DD.MM.YYYY HH:mm"
+                        placeholder="Sana va vaqt tanlang"
+                        allowClear={false}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      name="checkoutDate"
+                      label="Qachongacha qoladi"
+                      rules={[
+                        { required: true, message: "Chiqish sanasi majburiy" },
+                      ]}
+                    >
+                      <DatePicker
+                        style={{ width: "100%" }}
+                        format="DD.MM.YYYY"
+                        placeholder="Chiqish sanasini tanlang"
+                        disabledDate={(current) =>
+                          current &&
+                          current.startOf("day").isBefore(dayjs().startOf("day"))
+                        }
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      name="vip"
+                      label="VIP holati"
+                      valuePropName="checked"
+                      className="checkin-vip-item"
+                    >
+                      <Checkbox>VIP mehmon (to'lov olinmaydi)</Checkbox>
+                    </Form.Item>
+                  </>
                 )}
               </div>
             </div>
@@ -519,7 +714,6 @@ function GuestCheckinPage() {
               name="birthDate"
               label="Tug'ilgan sana"
               rules={[
-                { required: true, message: "Sana majburiy" },
                 {
                   pattern: /^\d{2}\.\d{2}\.\d{4}$/,
                   message: "Format: dd.mm.yyyy",
@@ -550,6 +744,21 @@ function GuestCheckinPage() {
                 }
               />
             </Form.Item>
+            <Form.Item name="email" label="Email (ixtiyoriy)">
+              <Input type="email" placeholder="name@example.com" />
+            </Form.Item>
+            <Form.Item name="organization" label="Tashkilot (ixtiyoriy)">
+              <AutoComplete
+                allowClear
+                options={organizationOptions}
+                placeholder="Tashkilot nomi"
+                filterOption={(input, option) =>
+                  String(option?.value || "")
+                    .toLowerCase()
+                    .includes(String(input || "").toLowerCase())
+                }
+              />
+            </Form.Item>
           </div>
           <Form.Item name="note" label="Izoh">
             <Input.TextArea
@@ -558,6 +767,51 @@ function GuestCheckinPage() {
               placeholder="1-mehmon uchun eslatma"
             />
           </Form.Item>
+
+          {!isBookingMode && (
+            <div className="checkin-grid-top">
+              <Form.Item name="initialPaymentAmount" label="O'rnida to'lov (ixtiyoriy)">
+                <InputNumber
+                  min={0}
+                  style={{ width: "100%" }}
+                  addonAfter="so'm"
+                  formatter={(value) =>
+                    String(value || "").replace(/\B(?=(\d{3})+(?!\d))/g, " ")
+                  }
+                  parser={(value) => String(value || "").replace(/[^\d]/g, "")}
+                  onKeyDown={blockNonNumericKeys}
+                />
+              </Form.Item>
+              <Form.Item name="initialPaymentType" label="To'lov usuli">
+                <Segmented
+                  block
+                  options={[
+                    { label: "Naqd", value: "naqd" },
+                    { label: "Plastik", value: "karta" },
+                    { label: "Bank o'tkazmasi", value: "bank" },
+                  ]}
+                />
+              </Form.Item>
+              <Form.Item name="initialPaymentDate" label="To'lov sanasi va vaqti">
+                <DatePicker
+                  style={{ width: "100%" }}
+                  showTime={{ format: "HH:mm" }}
+                  format="DD.MM.YYYY HH:mm"
+                  placeholder="To'lov sanasini tanlang"
+                  allowClear={false}
+                />
+              </Form.Item>
+              <Form.Item name="mainPaymentType" label="Asosiy to'lov usuli">
+                <Segmented
+                  block
+                  options={[
+                    { label: "Naqd", value: "naqd" },
+                    { label: "Bank o'tkazmasi", value: "bank" },
+                  ]}
+                />
+              </Form.Item>
+            </div>
+          )}
 
           <Form.List name="additionalGuests">
             {(fields, { remove }) => (
@@ -596,7 +850,6 @@ function GuestCheckinPage() {
                         name={[field.name, "birthDate"]}
                         label="Tug'ilgan sana"
                         rules={[
-                          { required: true, message: "Sana majburiy" },
                           {
                             pattern: /^\d{2}\.\d{2}\.\d{4}$/,
                             message: "Format: dd.mm.yyyy",
@@ -632,6 +885,13 @@ function GuestCheckinPage() {
                             );
                           }}
                         />
+                      </Form.Item>
+                      <Form.Item
+                        {...field}
+                        name={[field.name, "email"]}
+                        label="Email (ixtiyoriy)"
+                      >
+                        <Input type="email" placeholder="name@example.com" />
                       </Form.Item>
                     </div>
                     <Form.Item

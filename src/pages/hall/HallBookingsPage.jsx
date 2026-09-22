@@ -12,6 +12,7 @@ import {
   Tag,
 } from "antd";
 import dayjs from "dayjs";
+import OwnerOnly from "../../components/OwnerOnly";
 import { useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import {
@@ -40,7 +41,6 @@ import "./hall.css";
 
 const paymentTypeOptions = [
   { label: "Naqd", value: "naqd" },
-  { label: "Click", value: "click" },
   { label: "Bank", value: "bank" },
   { label: "Karta", value: "karta" },
 ];
@@ -114,6 +114,7 @@ function HallBookingsPage() {
       dateRange: null,
       totalAmount: 0,
       paidAmount: 0,
+      initialPaymentDate: dayjs(),
       note: "",
     });
     setOpen(true);
@@ -146,6 +147,7 @@ function HallBookingsPage() {
     paymentForm.setFieldsValue({
       amount: Number(item.debtAmount || 0),
       type: "naqd",
+      paymentDate: dayjs(),
       note: "",
     });
     setPaymentModalOpen(true);
@@ -185,7 +187,10 @@ function HallBookingsPage() {
         totalAmount: Number(values.totalAmount || 0),
         note: String(values.note || "").trim(),
       };
-      if (!editing) payload.paidAmount = Number(values.paidAmount || 0);
+      if (!editing) {
+        payload.paidAmount = Number(values.paidAmount || 0);
+        payload.initialPaymentDate = values.initialPaymentDate?.toISOString();
+      }
 
       const result = editing
         ? await updateHallBooking({ id: editing._id, ...payload }).unwrap()
@@ -209,6 +214,7 @@ function HallBookingsPage() {
         id: paymentBooking._id,
         amount,
         type: values.type,
+        paymentDate: values.paymentDate?.toISOString(),
         note: String(values.note || "").trim(),
       }).unwrap();
       toast.success(result?.message || "To'lov qo'shildi");
@@ -386,7 +392,7 @@ function HallBookingsPage() {
                             <FiXCircle size={16} />
                           </button>
                         </Popconfirm>
-                        <Popconfirm
+                        <OwnerOnly><Popconfirm
                           title="Buyurtmani o'chirish"
                           description="Rostdan ham o'chirasizmi?"
                           okText="O'chirish"
@@ -405,7 +411,7 @@ function HallBookingsPage() {
                           >
                             <FiTrash2 size={16} />
                           </button>
-                        </Popconfirm>
+                        </Popconfirm></OwnerOnly>
                       </div>
                     </td>
                   </tr>
@@ -535,6 +541,17 @@ function HallBookingsPage() {
               onPaste={preventInvalidAmountPaste}
             />
           </Form.Item>
+          {!editing ? (
+            <Form.Item name="initialPaymentDate" label="To'lov sanasi va vaqti">
+              <DatePicker
+                style={{ width: "100%" }}
+                showTime={{ format: "HH:mm" }}
+                format="DD.MM.YYYY HH:mm"
+                placeholder="To'lov sanasini tanlang"
+                allowClear={false}
+              />
+            </Form.Item>
+          ) : null}
           <Form.Item name="note" label="Izoh" className="hall-full">
             <Input.TextArea rows={3} />
           </Form.Item>
@@ -601,6 +618,19 @@ function HallBookingsPage() {
             rules={[{ required: true, message: "To'lov turi majburiy" }]}
           >
             <Segmented options={paymentTypeOptions} block />
+          </Form.Item>
+          <Form.Item
+            name="paymentDate"
+            label="To'lov sanasi va vaqti"
+            rules={[{ required: true, message: "To'lov sanasi majburiy" }]}
+          >
+            <DatePicker
+              style={{ width: "100%" }}
+              showTime={{ format: "HH:mm" }}
+              format="DD.MM.YYYY HH:mm"
+              placeholder="To'lov sanasini tanlang"
+              allowClear={false}
+            />
           </Form.Item>
           <Form.Item name="note" label="Izoh">
             <Input />

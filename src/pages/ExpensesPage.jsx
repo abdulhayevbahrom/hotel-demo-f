@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import OwnerOnly from "../components/OwnerOnly";
 import {
   Button,
   Form,
@@ -17,6 +18,7 @@ import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import {
   useCreateExpenseMutation,
   useDeleteExpenseMutation,
+  useDeleteExpensesBulkMutation,
   useGetExpensesQuery,
   useUpdateExpenseMutation,
 } from "../store/employeeApi";
@@ -30,13 +32,11 @@ const formatMoney = (value) => Number(value || 0).toLocaleString();
 const paymentTypeOptions = [
   { label: "Naqd", value: "naqd" },
   { label: "Karta", value: "karta" },
-  { label: "Click", value: "click" },
   { label: "Bank", value: "bank" },
 ];
 const paymentTypeLabel = {
   naqd: "Naqd",
   karta: "Karta",
-  click: "Click",
   bank: "Bank",
 };
 const formatCreatedBy = (createdBy) => {
@@ -63,6 +63,7 @@ function ExpensesPage() {
     typeof window !== "undefined" ? window.innerWidth < 900 : false,
   );
   const [editingExpense, setEditingExpense] = useState(null);
+  const [selectedExpenseIds, setSelectedExpenseIds] = useState([]);
 
   useEffect(() => {
     const handleResize = () => setIsMobileFilters(window.innerWidth < 900);
@@ -79,6 +80,8 @@ function ExpensesPage() {
   const [createExpense, { isLoading: creating }] = useCreateExpenseMutation();
   const [updateExpense, { isLoading: updating }] = useUpdateExpenseMutation();
   const [deleteExpense, { isLoading: deleting }] = useDeleteExpenseMutation();
+  const [deleteExpensesBulk, { isLoading: deletingBulk }] =
+    useDeleteExpensesBulkMutation();
 
   const payload = data?.innerData || {};
   const items = payload.items || [];
@@ -161,6 +164,42 @@ function ExpensesPage() {
       toast.error(err?.data?.message || "O'chirishda xatolik");
     }
   };
+
+  const toggleExpenseSelection = (id, checked) => {
+    setSelectedExpenseIds((previous) =>
+      checked
+        ? [...new Set([...previous, id])]
+        : previous.filter((selectedId) => selectedId !== id),
+    );
+  };
+
+  const toggleCurrentPageSelection = (checked) => {
+    const pageIds = items.map((expense) => expense._id);
+    setSelectedExpenseIds((previous) =>
+      checked
+        ? [...new Set([...previous, ...pageIds])]
+        : previous.filter((id) => !pageIds.includes(id)),
+    );
+  };
+
+  const onDeleteSelected = async () => {
+    try {
+      const result = await deleteExpensesBulk(selectedExpenseIds).unwrap();
+      toast.success(
+        result?.message || `${selectedExpenseIds.length} ta xarajat o'chirildi`,
+      );
+      setSelectedExpenseIds([]);
+    } catch (err) {
+      toast.error(err?.data?.message || "Xarajatlarni o'chirishda xatolik");
+    }
+  };
+
+  useEffect(() => {
+    const visibleIds = new Set(items.map((expense) => expense._id));
+    setSelectedExpenseIds((previous) =>
+      previous.filter((id) => visibleIds.has(id)),
+    );
+  }, [data]);
 
   const byPaymentTypeRows = useMemo(
     () =>
@@ -259,6 +298,21 @@ function ExpensesPage() {
             <Button className="hotel-primary-btn" onClick={openCreateModal}>
               + Xarajat qo'shish
             </Button>
+            {selectedExpenseIds.length > 0 ? (
+              <OwnerOnly><Popconfirm
+                title="Tanlangan xarajatlarni o'chirish"
+                description={`${selectedExpenseIds.length} ta xarajat o'chiriladi. Davom etasizmi?`}
+                okText="O'chirish"
+                cancelText="Bekor"
+                okButtonProps={{ danger: true, loading: deletingBulk }}
+                onConfirm={onDeleteSelected}
+                overlayClassName="hotel-popconfirm"
+              >
+                <Button danger icon={<FiTrash2 />} loading={deletingBulk}>
+                  Tanlanganlarni o'chirish ({selectedExpenseIds.length})
+                </Button>
+              </Popconfirm></OwnerOnly>
+            ) : null}
           </div>
         </div>
 
@@ -286,6 +340,21 @@ function ExpensesPage() {
               <table className="table">
                 <thead>
                   <tr>
+                    <th className="expense-select-column">
+                      <input
+                        type="checkbox"
+                        aria-label="Joriy sahifadagi barcha xarajatlarni tanlash"
+                        checked={items.length > 0 && items.every((expense) => selectedExpenseIds.includes(expense._id))}
+                        ref={(input) => {
+                          if (input) {
+                            input.indeterminate =
+                              selectedExpenseIds.some((id) => items.some((expense) => expense._id === id)) &&
+                              !items.every((expense) => selectedExpenseIds.includes(expense._id));
+                          }
+                        }}
+                        onChange={(event) => toggleCurrentPageSelection(event.target.checked)}
+                      />
+                    </th>
                     <th>Nomi</th>
                     <th>Kategoriya</th>
                     <th>To'lov turi</th>
@@ -299,6 +368,16 @@ function ExpensesPage() {
                 <tbody>
                   {items.map((expense) => (
                     <tr key={expense._id}>
+                      <td data-label="Tanlash" className="expense-select-column">
+                        <input
+                          type="checkbox"
+                          aria-label={`${expense.title} xarajatini tanlash`}
+                          checked={selectedExpenseIds.includes(expense._id)}
+                          onChange={(event) =>
+                            toggleExpenseSelection(expense._id, event.target.checked)
+                          }
+                        />
+                      </td>
                       <td data-label="Nomi">{expense.title}</td>
                       <td data-label="Kategoriya">{expense.category}</td>
                       <td data-label="To'lov turi">
@@ -321,7 +400,7 @@ function ExpensesPage() {
                           >
                             <FiEdit2 size={16} />
                           </button>
-                          <Popconfirm
+                          <OwnerOnly><Popconfirm
                             title="Xarajatni o'chirish"
                             description="Rostdan ham o'chirmoqchimisiz?"
                             okText="O'chirish"
@@ -336,14 +415,14 @@ function ExpensesPage() {
                             >
                               <FiTrash2 size={16} />
                             </button>
-                          </Popconfirm>
+                          </Popconfirm></OwnerOnly>
                         </div>
                       </td>
                     </tr>
                   ))}
                   {items.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="table-empty">
+                      <td colSpan={9} className="table-empty">
                         Xarajatlar topilmadi
                       </td>
                     </tr>

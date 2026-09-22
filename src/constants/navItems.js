@@ -5,19 +5,28 @@ export const navItems = [
   { to: "/occupancy", label: "Shaxmatka", section: "guests" },
   { to: "/guest-checkin", label: "Yangi mehmon", section: "guests" },
   { to: "/guests-active", label: "Active mijozlar", section: "guests-active" },
+  { to: "/groups", label: "Guruhlar", section: "groups" },
   {
     to: "/guests-history",
     label: "Mijozlar tarixi",
     section: "guests-history",
   },
+  { to: "/receipts", label: "Kvitansiya", section: "receipts" },
   { to: "/guests-debtors", label: "Qarzdorlar", section: "guests-debtors" },
   { to: "/attendance", label: "Davomat", section: "attendance" },
+  { to: "/payroll", label: "Oylik", section: "payroll" },
   { to: "/services", label: "Xizmatlar", section: "services" },
   { to: "/hall-bookings", label: "Zal ijarasi", section: "hall-bookings" },
   { to: "/expenses", label: "Xarajatlar", section: "expenses" },
   // { to: "/finance", label: "Moliya", section: "finance" },
   { to: "/reports", label: "Hisobotlar", section: "reports" },
+  {
+    to: "/client-sales-report",
+    label: "Mijozlar hisoboti",
+    section: "client-sales-report",
+  },
   { to: "/settings", label: "Sozlamalar", section: "settings" },
+  { to: "/audit-logs", label: "Audit log", section: "audit-logs" },
 ];
 
-export const allSections = navItems.map((item) => item.section);
+export const allSections = [...new Set(navItems.map((item) => item.section))];

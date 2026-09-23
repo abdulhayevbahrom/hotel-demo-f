@@ -208,21 +208,31 @@ function RoomsPage() {
       String(values.korpus || "").trim().toUpperCase() ||
       parseLegacyRoomNumber(roomNumberRaw).korpus ||
       "A";
-    const payload = new FormData();
-    payload.append("roomNumber", roomNumberValue);
-    payload.append("korpus", korpusValue);
-    payload.append("floor", String(Number(values.floor)));
-    payload.append("capacity", String(Number(values.capacity || 1)));
-    payload.append("category", values.category);
-    payload.append(
-      "prices",
-      JSON.stringify({
+    const roomData = {
+      roomNumber: roomNumberValue,
+      korpus: korpusValue,
+      floor: Number(values.floor),
+      capacity: Number(values.capacity || 1),
+      category: values.category,
+      prices: {
         oddiy: Number(values.prices?.oddiy || 0),
         chetEllik: Number(values.prices?.chetEllik || 0),
-      }),
-    );
-    if (editingId) payload.append("status", values.condition === "remont" ? "remont" : "bosh");
-    imageFiles.forEach((file) => payload.append("images", file.originFileObj || file));
+      },
+      ...(editingId
+        ? { status: values.condition === "remont" ? "remont" : "bosh" }
+        : {}),
+    };
+
+    // Rasm bo'lmasa JSON yuboramiz. Bu reverse proxy multipart so'rovini
+    // tanasiz uzatib yuborgan holatda AJV'ning `must be object` xatosini oldini oladi.
+    let payload = roomData;
+    if (imageFiles.length) {
+      payload = new FormData();
+      Object.entries(roomData).forEach(([key, value]) => {
+        payload.append(key, key === "prices" ? JSON.stringify(value) : String(value));
+      });
+      imageFiles.forEach((file) => payload.append("images", file.originFileObj || file));
+    }
 
     try {
       if (editingId) {
